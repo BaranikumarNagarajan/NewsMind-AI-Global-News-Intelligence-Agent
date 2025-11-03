@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>NewsMind AI — Global News Intelligence</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <!-- Header -->
+  <header class="navbar">
+    <div class="logo">
+      <img src="news_logo.png" alt="NewsMind logo" class="logo-img"/>
+      <span>NewsMind AI</span>
+    </div>
+    <nav class="nav-links" id="tabs">
+      <a href="#" class="nav-item active" data-cat="home">Home</a>
+      <a href="#" class="nav-item" data-cat="world">World</a>
+      <a href="#" class="nav-item" data-cat="tech">Technology</a>
+      <a href="#" class="nav-item" data-cat="finance">Finance</a>
+      <a href="#" class="nav-item" data-cat="about">About</a>
+    </nav>
+  </header>
+
+  <!-- Latest ticker (clickable headlines) -->
+  <div class="ticker" aria-label="Latest headlines ticker">
+    <div class="ticker__track" id="ticker-track">
+      <!-- JS injects <a>headline</a> • <a>headline</a> ... -->
+    </div>
+  </div>
+
+  <!-- Main -->
+  <main class="main">
+    <!-- Left: Ask Agent -->
+    <section class="query-section">
+      <h2>Ask the NewsMind Agent</h2>
+      <form id="ask-form" autocomplete="off">
+        <input id="query" type="text" placeholder="Ask about any topic..." />
+        <button id="ask-btn" type="submit">Ask</button>
+      </form>
+      <div id="output" class="output" role="region" aria-live="polite"></div>
+    </section>
+
+    <!-- Right: Presenter + What's New -->
+    <aside class="sidebar">
+      <div class="anchor-card">
+        <img src="anchorwoman.png" alt="AI News Anchor" class="anchor-img"/>
+        <h3>Your AI News Presenter</h3>
+        <p>Live global insights with verified sources.</p>
+      </div>
+
+      <div class="headlines">
+        <div class="headlines-header">
+          <h3><span class="live-dot"></span> What’s New</h3>
+          <small id="last-updated" class="muted"></small>
+        </div>
+        <div id="headline-grid" class="headline-grid"></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer" id="about">
+    <p><strong>Created by:</strong> BARANI KUMAR NAGARAJAN</p>
+    <p>Email: ✉️ <a href="mailto:nagarajanbaranikumar@gmail.com">nagarajanbaranikumar@gmail.com</a></p>
+    <p>Linked In: <a href="https://www.linkedin.com/in/baranikumar-nagarajan" target="_blank">Baranikumar Nagarajan</a>
+      GitHub: <a href="https://github.com/BaranikumarNagarajan" target="_blank">BaranikumarNagarajan</a>
+    </p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
