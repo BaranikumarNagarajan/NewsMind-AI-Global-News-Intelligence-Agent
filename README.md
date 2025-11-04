@@ -90,8 +90,8 @@ REACTION • Experts emphasize India’s growing role in digital transformation.
 🧑‍💻 Creator
 
 BARANI KUMAR NAGARAJAN
-📍 Warsaw, Poland
 📧 nagarajanbaranikumar@gmail.com
+ www.linkedin.com/in/baranikumarnagarajan
 
 🔗 GitHub
 
