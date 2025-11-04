@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-  <!-- Header -->
+  <!-- ===== Header ===== -->
   <header class="navbar">
     <div class="logo">
       <img src="news_logo.png" alt="NewsMind logo" class="logo-img"/>
@@ -18,30 +18,30 @@
       <a href="#" class="nav-item" data-cat="world">World</a>
       <a href="#" class="nav-item" data-cat="tech">Technology</a>
       <a href="#" class="nav-item" data-cat="finance">Finance</a>
-      <a href="#" class="nav-item" data-cat="about">About</a>
+      <a href="#about" class="nav-item" data-cat="about">About</a>
     </nav>
   </header>
 
-  <!-- Latest ticker (clickable headlines) -->
+  <!-- ===== Ticker ===== -->
   <div class="ticker" aria-label="Latest headlines ticker">
-    <div class="ticker__track" id="ticker-track">
-      <!-- JS injects <a>headline</a> • <a>headline</a> ... -->
-    </div>
+    <div class="ticker__track" id="ticker-track"></div>
   </div>
 
-  <!-- Main -->
+  <!-- ===== Main Layout ===== -->
   <main class="main">
-    <!-- Left: Ask Agent -->
+    <!-- Left: Ask AI -->
     <section class="query-section">
       <h2>Ask the NewsMind Agent</h2>
       <form id="ask-form" autocomplete="off">
         <input id="query" type="text" placeholder="Ask about any topic..." />
         <button id="ask-btn" type="submit">Ask</button>
       </form>
-      <div id="output" class="output" role="region" aria-live="polite"></div>
+      <div id="output" class="output" role="region" aria-live="polite">
+        <p><em>Type your question or select a category to view news.</em></p>
+      </div>
     </section>
 
-    <!-- Right: Presenter + What's New -->
+    <!-- Right: Presenter + Headlines -->
     <aside class="sidebar">
       <div class="anchor-card">
         <img src="anchorwoman.png" alt="AI News Anchor" class="anchor-img"/>
@@ -59,12 +59,15 @@
     </aside>
   </main>
 
-  <!-- Footer -->
+  <!-- ===== Footer ===== -->
   <footer class="footer" id="about">
     <p><strong>Created by:</strong> BARANI KUMAR NAGARAJAN</p>
     <p>Email: ✉️ <a href="mailto:nagarajanbaranikumar@gmail.com">nagarajanbaranikumar@gmail.com</a></p>
-    <p>Linked In: <a href="https://www.linkedin.com/in/baranikumar-nagarajan" target="_blank">Baranikumar Nagarajan</a>
-      GitHub: <a href="https://github.com/BaranikumarNagarajan" target="_blank">BaranikumarNagarajan</a>
+    <p>
+      LinkedIn:
+      <a href="https://www.linkedin.com/in/baranikumar-nagarajan" target="_blank">Baranikumar Nagarajan</a> |
+      GitHub:
+      <a href="https://github.com/BaranikumarNagarajan" target="_blank">BaranikumarNagarajan</a>
     </p>
   </footer>
 

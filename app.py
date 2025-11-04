@@ -1,5 +1,7 @@
 import os
 import logging
+import requests
+import json
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -8,20 +10,21 @@ from dotenv import load_dotenv
 from langchain.llms import HuggingFaceHub
 from langchain.prompts import PromptTemplate
 from langchain.schema import LLMResult
-import requests
-import json
 
 # -------------------- ENV --------------------
 load_dotenv()
 PORT = int(os.getenv("PORT", 5000))
 
+# API KEYS
 SERPER_API_KEY = os.getenv("SERPER_API_KEY", "")
+NEWSAPI_KEY = os.getenv("NEWSAPI_KEY", "")
+NEWSDATA_KEY = os.getenv("NEWSDATA_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY", "")
 HF_TEXT_MODEL = os.getenv("HF_TEXT_MODEL", "google/flan-t5-base")
-USE_OLLAMA = os.getenv("USE_OLLAMA", "False").lower() == "true"
 
+USE_OLLAMA = os.getenv("USE_OLLAMA", "False").lower() == "true"
 SUMMARY_MAX_TOKENS = int(os.getenv("SUMMARY_MAX_TOKENS", 320))
 SUMMARY_TEMPERATURE = float(os.getenv("SUMMARY_TEMPERATURE", 0.4))
 MAX_SOURCE_LINKS = int(os.getenv("MAX_SOURCE_LINKS", 5))
@@ -41,39 +44,90 @@ log.info(f"🧩 SUMMARY_MAX_TOKENS={SUMMARY_MAX_TOKENS} TEMP={SUMMARY_TEMPERATUR
 log.info(f"🔗 MAX_SOURCE_LINKS={MAX_SOURCE_LINKS} MAX_CHARS_PER_SOURCE={MAX_CHARS_PER_SOURCE}")
 log.info("--------------------------------------------------")
 
-# -------------------- SEARCHER --------------------
-def search_serper(query: str, num_results: int = MAX_SOURCE_LINKS):
-    """Search Google via Serper API and return structured results"""
-    try:
-        url = "https://google.serper.dev/news"
-        headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
-        payload = {"q": query, "num": num_results}
-        res = requests.post(url, headers=headers, data=json.dumps(payload), timeout=20)
-        data = res.json()
-        results = []
-        for item in data.get("news", [])[:num_results]:
-            results.append({
-                "title": item.get("title", "Untitled"),
-                "link": item.get("link", ""),
-                "snippet": item.get("snippet", "")
-            })
-        log.info(f"[searcher] returning {len(results)} items (requested {num_results}).")
-        return results
-    except Exception as e:
-        log.error(f"[searcher] Error: {e}")
-        return []
+# -------------------- NEWS FETCHER --------------------
+def fetch_news(query: str, num_results: int = MAX_SOURCE_LINKS):
+    results = []
+
+    # --- Try Serper.dev ---
+    if SERPER_API_KEY:
+        try:
+            headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
+            payload = {"q": query, "num": num_results}
+            log.info("[searcher] Fetching from Serper.dev...")
+            resp = requests.post("https://google.serper.dev/news", headers=headers, json=payload, timeout=25)
+            resp.raise_for_status()
+            data = resp.json()
+
+            if "news" in data:
+                results = [
+                    {
+                        "title": n.get("title"),
+                        "link": n.get("link"),
+                        "snippet": n.get("snippet"),
+                        "source": n.get("source"),
+                    }
+                    for n in data["news"][:num_results]
+                ]
+                log.info(f"[searcher] Got {len(results)} items from Serper.dev")
+                return results
+        except Exception as e:
+            log.error(f"[searcher] Serper.dev failed: {e}")
+
+    # --- Try NewsAPI.org ---
+    if NEWSAPI_KEY:
+        try:
+            log.info("[searcher] Fetching from NewsAPI.org...")
+            url = f"https://newsapi.org/v2/everything?q={query}&pageSize={num_results}&language=en&apiKey={NEWSAPI_KEY}"
+            resp = requests.get(url, timeout=25)
+            resp.raise_for_status()
+            data = resp.json()
+            if "articles" in data:
+                results = [
+                    {
+                        "title": a.get("title"),
+                        "link": a.get("url"),
+                        "snippet": a.get("description"),
+                        "source": a.get("source", {}).get("name"),
+                    }
+                    for a in data["articles"][:num_results]
+                ]
+                log.info(f"[searcher] Got {len(results)} items from NewsAPI.org")
+                return results
+        except Exception as e:
+            log.error(f"[searcher] NewsAPI.org failed: {e}")
+
+    # --- Try NewsData.io ---
+    if NEWSDATA_KEY:
+        try:
+            log.info("[searcher] Fetching from NewsData.io...")
+            url = f"https://newsdata.io/api/1/news?apikey={NEWSDATA_KEY}&q={query}&language=en"
+            resp = requests.get(url, timeout=25)
+            resp.raise_for_status()
+            data = resp.json()
+            if "results" in data:
+                results = [
+                    {
+                        "title": r.get("title"),
+                        "link": r.get("link"),
+                        "snippet": r.get("description"),
+                        "source": r.get("source_id"),
+                    }
+                    for r in data["results"][:num_results]
+                ]
+                log.info(f"[searcher] Got {len(results)} items from NewsData.io")
+                return results
+        except Exception as e:
+            log.error(f"[searcher] NewsData.io failed: {e}")
+
+    log.error("[searcher] All news sources failed — returning empty list.")
+    return results
 
 # -------------------- LLM ENGINE --------------------
 def generate_summary(question: str, context: str) -> str:
-    """Try Groq → HF → fallback"""
-    # === try Groq first ===
     if GROQ_API_KEY:
         try:
             log.info(f"[GROQ] model={GROQ_MODEL} tokens={SUMMARY_MAX_TOKENS} temp={SUMMARY_TEMPERATURE}")
-            headers = {
-                "Authorization": f"Bearer {GROQ_API_KEY}",
-                "Content-Type": "application/json"
-            }
+            headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
             payload = {
                 "model": GROQ_MODEL,
                 "messages": [{"role": "user", "content": context}],
@@ -87,7 +141,6 @@ def generate_summary(question: str, context: str) -> str:
         except Exception as e:
             log.warning(f"⚠️ Groq generation error: {e}")
 
-    # === fallback to Hugging Face ===
     if HUGGINGFACE_API_KEY:
         try:
             log.info(f"[HF] model={HF_TEXT_MODEL} tokens={SUMMARY_MAX_TOKENS} temp={SUMMARY_TEMPERATURE}")
@@ -98,8 +151,7 @@ def generate_summary(question: str, context: str) -> str:
             )
             prompt = PromptTemplate.from_template("{context}")
             result: LLMResult = llm.generate(prompts=[prompt.format(context=context)])
-            text = result.generations[0][0].text.strip()
-            return text
+            return result.generations[0][0].text.strip()
         except Exception as e:
             log.warning(f"⚠️ HuggingFace generation error: {e}")
 
@@ -115,38 +167,26 @@ def ask():
     if not question:
         return jsonify({"answer": "Please provide a question.", "sources": []})
 
-    sources = search_serper(question)
-    context = "\n\n".join(
-        f"{s['title']}\n{s['snippet'][:MAX_CHARS_PER_SOURCE]}"
-        for s in sources
-    )
+    sources = fetch_news(question, num_results=MAX_SOURCE_LINKS)
+    context = "\n\n".join(f"{s['title']}\n{s['snippet'][:MAX_CHARS_PER_SOURCE]}" for s in sources)
 
-    # ------------------ SMART PROMPT ------------------
     prompt = f"""
 You are a precise, neutral news analyst. Use only the articles to answer the user's question.
 
 FORMAT STRICTLY:
-- Line 1: A short HEADLINE in Title Case (max 12 words). No punctuation at the end.
-- Lines 2–7: 5–6 compact points. Each line begins with ONE UPPERCASE LABEL and " • " then the fact.
-  Examples of labels: RESULT, TURNOUT, KEY STATES, TIMELINE, CERTIFICATION, RECOUNT, MARKETS, REACTION, CONTEXT, OUTLOOK
-- Each point must be 18–22 words, factual, and dated when possible (e.g., "On Nov 6, ...").
-- No extra blank lines, no emojis, no markdown, no tables, no speculation.
-
-TONE:
-- Clear, newsroom style. Resolve conflicts by noting timing or source differences.
+- Line 1: A short HEADLINE in Title Case (max 12 words)
+- Lines 2–7: 5–6 compact points, each with one uppercase label and “•” then the fact.
+- No emojis, markdown, or speculation.
 
 Question:
 {question}
 
 Articles:
 {context}
-
-Now write the final answer only following the exact format and length.
 """.strip()
 
     answer = generate_summary(question, prompt)
 
-    # ------------------ LIGHT POST-FORMATTING ------------------
     def _title_case(s: str) -> str:
         small = {"and","or","the","of","to","in","on","for","a","an","at","by","vs"}
         words = s.split()
@@ -163,7 +203,7 @@ Now write the final answer only following the exact format and length.
     if lines:
         lines[0] = _title_case(lines[0].rstrip("."))
     while len(lines) < 6:
-        lines.append("OUTLOOK • Additional context may update as outlets refine their reports within the next news cycle.")
+        lines.append("OUTLOOK • Additional context may update as outlets refine reports within the next cycle.")
     answer = "\n".join(lines)
 
     return jsonify({"answer": answer, "sources": sources})

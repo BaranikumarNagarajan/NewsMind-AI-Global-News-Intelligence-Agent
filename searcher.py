@@ -1,65 +1,120 @@
 import os
-import logging
 import requests
-from duckduckgo_search import DDGS
+import logging
 
-log = logging.getLogger("newsmind.search")
+logger = logging.getLogger("newsmind")
+
+# Load API keys from environment or .env file
 SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+NEWSAPI_KEY = os.getenv("NEWSAPI_KEY")  # backup option
+NEWSDATA_KEY = os.getenv("NEWSDATA_KEY")  # another backup
 
-def _serper_news(query, num_results=5):
-    if not SERPER_API_KEY:
-        log.info("SERPER_API_KEY missing; skipping Serper.")
-        return []
-    url = "https://google.serper.dev/news"
-    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
-    payload = {"q": query, "num": num_results}
-    try:
-        r = requests.post(url, headers=headers, json=payload, timeout=15)
-        r.raise_for_status()
-        data = r.json()
-        return [
-            {
-                "title": i.get("title"),
-                "link": i.get("link"),
-                "snippet": i.get("snippet", ""),
-                "date": i.get("date") or i.get("publishedDate"),
-                "source": i.get("source") or i.get("publisher"),
+def fetch_news(query: str, num_results: int = 5):
+    """
+    Fetches news results for a given query.
+    Tries Serper.dev first, then falls back to NewsAPI.org or NewsData.io.
+    """
+
+    results = []
+
+    # -------------------------------
+    # 1️⃣ Try Serper.dev
+    # -------------------------------
+    if SERPER_API_KEY:
+        try:
+            headers = {
+                "X-API-KEY": SERPER_API_KEY,
+                "Content-Type": "application/json",
             }
-            for i in data.get("news", [])
-        ]
-    except Exception as e:
-        log.warning(f"Serper error: {e}")
-        return []
+            payload = {"q": query, "num": num_results}
+            logger.info("[searcher] Fetching from Serper.dev...")
+            resp = requests.post(
+                "https://google.serper.dev/news",
+                headers=headers,
+                json=payload,
+                timeout=25
+            )
+            resp.raise_for_status()
+            data = resp.json()
 
-def _ddg_news(query, num_results=5):
-    try:
-        results = []
-        with DDGS() as ddgs:
-            for h in ddgs.news(query, max_results=num_results):
-                results.append({
-                    "title": h.get("title"),
-                    "link": h.get("url"),
-                    "snippet": h.get("body", ""),
-                    "date": h.get("date"),
-                    "source": h.get("source"),
-                })
-        return results
-    except Exception as e:
-        log.warning(f"DuckDuckGo error: {e}")
-        return []
+            if "news" in data and len(data["news"]) > 0:
+                results = [
+                    {
+                        "title": item.get("title"),
+                        "link": item.get("link"),
+                        "snippet": item.get("snippet"),
+                        "source": item.get("source"),
+                    }
+                    for item in data["news"][:num_results]
+                ]
+                logger.info(f"[searcher] Got {len(results)} items from Serper.dev")
+                return results
+            else:
+                logger.warning("[searcher] No news found from Serper.dev")
 
-def _dedupe(items):
-    seen = set(); out = []
-    for i in items:
-        url = (i.get("link") or "").split("?")[0]
-        if url and url not in seen:
-            seen.add(url); out.append(i)
-    return out
+        except Exception as e:
+            logger.error(f"[searcher] Serper.dev failed: {e}")
 
-def search_news(query, num_results=5):
-    s = _serper_news(query, num_results)
-    need = max(0, num_results - len(s))
-    d = _ddg_news(query, need) if need else []
-    out = _dedupe(s + d)[:num_results]
-    log.info(f"[search] returning {len(out)} items (requested {num_results}).")
-    return out
+    # -------------------------------
+    # 2️⃣ Try NewsAPI.org (Backup)
+    # -------------------------------
+    if NEWSAPI_KEY:
+        try:
+            url = f"https://newsapi.org/v2/everything?q={query}&pageSize={num_results}&language=en&apiKey={NEWSAPI_KEY}"
+            logger.info("[searcher] Fetching from NewsAPI.org...")
+            resp = requests.get(url, timeout=20)
+            resp.raise_for_status()
+            data = resp.json()
+
+            if "articles" in data:
+                results = [
+                    {
+                        "title": a.get("title"),
+                        "link": a.get("url"),
+                        "snippet": a.get("description"),
+                        "source": a.get("source", {}).get("name"),
+                    }
+                    for a in data["articles"][:num_results]
+                ]
+                logger.info(f"[searcher] Got {len(results)} items from NewsAPI.org")
+                return results
+            else:
+                logger.warning("[searcher] No articles found in NewsAPI.org response")
+
+        except Exception as e:
+            logger.error(f"[searcher] NewsAPI.org failed: {e}")
+
+    # -------------------------------
+    # 3️⃣ Try NewsData.io (Final Fallback)
+    # -------------------------------
+    if NEWSDATA_KEY:
+        try:
+            url = f"https://newsdata.io/api/1/news?apikey={NEWSDATA_KEY}&q={query}&language=en"
+            logger.info("[searcher] Fetching from NewsData.io...")
+            resp = requests.get(url, timeout=20)
+            resp.raise_for_status()
+            data = resp.json()
+
+            if "results" in data:
+                results = [
+                    {
+                        "title": a.get("title"),
+                        "link": a.get("link"),
+                        "snippet": a.get("description"),
+                        "source": a.get("source_id"),
+                    }
+                    for a in data["results"][:num_results]
+                ]
+                logger.info(f"[searcher] Got {len(results)} items from NewsData.io")
+                return results
+            else:
+                logger.warning("[searcher] No results from NewsData.io")
+
+        except Exception as e:
+            logger.error(f"[searcher] NewsData.io failed: {e}")
+
+    # -------------------------------
+    # 4️⃣ If all fail, return an empty list
+    # -------------------------------
+    logger.error("[searcher] All news sources failed — returning empty list.")
+    return results
