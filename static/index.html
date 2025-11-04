@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>NewsMind AI — Global News Intelligence</title>
   <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
   <!-- ===== Header ===== -->
@@ -39,22 +40,47 @@
       <div id="output" class="output" role="region" aria-live="polite">
         <p><em>Type your question or select a category to view news.</em></p>
       </div>
+      <!-- 4-line summary information -->
+      <div id="summary-info" class="summary-info">
+        <h3>📋 Key Highlights</h3>
+        <div id="summary-content" class="summary-content"></div>
+      </div>
     </section>
 
     <!-- Right: Presenter + Headlines -->
     <aside class="sidebar">
       <div class="anchor-card">
-        <img src="anchorwoman.png" alt="AI News Anchor" class="anchor-img"/>
+        <div class="anchor-container">
+          <!-- Use the uploaded video file -->
+          <video id="anchor-video" class="anchor-video" loop muted>
+            <source src="video.mp4" type="video/mp4">
+            <!-- Fallback to static image if video doesn't load -->
+            <img src="anchorwoman.png" alt="AI News Anchor" class="anchor-img" id="anchor-image"/>
+          </video>
+          <div class="speaking-indicator" id="speaking-indicator"></div>
+          <button class="play-button" id="play-button" title="Play/Pause Speech">
+            <i class="fas fa-volume-up"></i>
+          </button>
+        </div>
         <h3>Your AI News Presenter</h3>
         <p>Live global insights with verified sources.</p>
       </div>
 
       <div class="headlines">
         <div class="headlines-header">
-          <h3><span class="live-dot"></span> What’s New</h3>
+          <h3><span class="live-dot"></span> What's New</h3>
           <small id="last-updated" class="muted"></small>
         </div>
         <div id="headline-grid" class="headline-grid"></div>
+      </div>
+      
+      <!-- Latest News with Images -->
+      <div class="latest-news-section">
+        <div class="latest-news-header">
+          <h3><span class="live-dot"></span> Latest News</h3>
+          <img src="latestnews_logo.png" alt="Latest News" class="latest-news-logo"/>
+        </div>
+        <div id="latest-news-container" class="latest-news-container"></div>
       </div>
     </aside>
   </main>

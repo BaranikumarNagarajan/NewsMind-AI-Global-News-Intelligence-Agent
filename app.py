@@ -16,17 +16,17 @@ load_dotenv()
 PORT = int(os.getenv("PORT", 5000))
 
 # API KEYS
-SERPER_API_KEY = os.getenv("SERPER_API_KEY", "")
 NEWSAPI_KEY = os.getenv("NEWSAPI_KEY", "")
 NEWSDATA_KEY = os.getenv("NEWSDATA_KEY", "")
+SERPER_API_KEY = os.getenv("SERPER_API_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY", "")
 HF_TEXT_MODEL = os.getenv("HF_TEXT_MODEL", "google/flan-t5-base")
 
 USE_OLLAMA = os.getenv("USE_OLLAMA", "False").lower() == "true"
-SUMMARY_MAX_TOKENS = int(os.getenv("SUMMARY_MAX_TOKENS", 320))
-SUMMARY_TEMPERATURE = float(os.getenv("SUMMARY_TEMPERATURE", 0.4))
+SUMMARY_MAX_TOKENS = int(os.getenv("SUMMARY_MAX_TOKENS", 450))
+SUMMARY_TEMPERATURE = float(os.getenv("SUMMARY_TEMPERATURE", 0.3))
 MAX_SOURCE_LINKS = int(os.getenv("MAX_SOURCE_LINKS", 5))
 MAX_CHARS_PER_SOURCE = int(os.getenv("MAX_CHARS_PER_SOURCE", 800))
 
@@ -171,12 +171,15 @@ def ask():
     context = "\n\n".join(f"{s['title']}\n{s['snippet'][:MAX_CHARS_PER_SOURCE]}" for s in sources)
 
     prompt = f"""
-You are a precise, neutral news analyst. Use only the articles to answer the user's question.
+You are a precise, neutral news analyst. Use only the articles to answer the user's question with detailed explanations.
 
 FORMAT STRICTLY:
 - Line 1: A short HEADLINE in Title Case (max 12 words)
-- Lines 2–7: 5–6 compact points, each with one uppercase label and “•” then the fact.
-- No emojis, markdown, or speculation.
+- Lines 2-5: 4 detailed explanation points with specific facts, figures, and context
+- Each point must start with a descriptive category in UPPERCASE followed by • and then a detailed explanation (2-3 sentences with specific data)
+- No emojis, markdown, or speculation
+- Focus on concrete details, statistics, specific information, and comprehensive explanations rather than generic statements
+- Include actual numbers, percentages, dates, and specific names when available
 
 Question:
 {question}
@@ -202,8 +205,8 @@ Articles:
     lines = [ln.strip() for ln in (answer or "").splitlines() if ln.strip()]
     if lines:
         lines[0] = _title_case(lines[0].rstrip("."))
-    while len(lines) < 6:
-        lines.append("OUTLOOK • Additional context may update as outlets refine reports within the next cycle.")
+    while len(lines) < 5:
+        lines.append("OUTLOOK • Additional context may update as outlets refine reports within the next cycle. Developments in this area continue to evolve, with stakeholders monitoring key indicators for further insights. Market participants are advised to stay informed about regulatory changes and technological advancements. Future updates will provide more clarity on emerging trends and their potential impacts.")
     answer = "\n".join(lines)
 
     return jsonify({"answer": answer, "sources": sources})
@@ -212,9 +215,10 @@ Articles:
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
 def serve_frontend(path):
-    if path and os.path.exists(os.path.join(app.static_folder, path)):
-        return send_from_directory(app.static_folder, path)
-    return send_from_directory(app.static_folder, "index.html")
+    static_folder = app.static_folder or "static"
+    if path and os.path.exists(os.path.join(static_folder, path)):
+        return send_from_directory(static_folder, path)
+    return send_from_directory(static_folder, "index.html")
 
 # -------------------- MAIN --------------------
 if __name__ == "__main__":
